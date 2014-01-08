@@ -15,7 +15,7 @@
 #include "llimits.h"
 #include "lua.h"
 
-
+// Constant for lua objects, like: variant tag
 /*
 ** Extra tags for non-values
 */
@@ -102,6 +102,8 @@ typedef union Value Value;
 ** an actual value plus a tag with its type.
 */
 
+// tt_: type information, so it usually take (8 + 4) bytes to represent a lua value
+// But in lua5.2, we can turn on "NaN Trick" to compress lua value back to 8 bytes.
 #define TValuefields	Value value_; int tt_
 
 typedef struct lua_TValue TValue;
@@ -392,16 +394,19 @@ union Value {
   GCObject *gc;    /* collectable objects */
   void *p;         /* light userdata */
   int b;           /* booleans */
+  // typedef int (*lua_CFunction) (lua_State *L);
   lua_CFunction f; /* light C functions */
+  // double n;
   numfield         /* numbers */
 };
 
 
+// TValue
 struct lua_TValue {
   TValuefields;
 };
 
-
+// TValue pointer
 typedef TValue *StkId;  /* index to stack elements */
 
 

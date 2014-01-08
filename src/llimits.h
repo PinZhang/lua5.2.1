@@ -73,6 +73,7 @@ typedef LUAI_UACNUMBER l_uacNumber;
 */
 #if !defined(luai_apicheck)
 
+// XXX How to open LUA_USE_APICHECK? and what's it used for?
 #if defined(LUA_USE_APICHECK)
 #include <assert.h>
 #define luai_apicheck(L,e)	assert(e)
@@ -151,6 +152,7 @@ typedef lu_int32 Instruction;
 #endif
 
 
+// When to use lua_lock?
 #if !defined(lua_lock)
 #define lua_lock(L)     ((void) 0)
 #define lua_unlock(L)   ((void) 0)

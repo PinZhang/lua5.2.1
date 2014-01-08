@@ -2,3 +2,6 @@
 lua
 luac
 liblua.a
+.project
+.settings
+.cproject

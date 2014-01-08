@@ -63,6 +63,7 @@ static TValue *index2addr (lua_State *L, int idx) {
     if (ttislcf(ci->func))  /* light C function? */
       return NONVALIDVALUE;  /* it has no upvalues */
     else {
+      // XXX What does cl* stand for?
       CClosure *func = clCvalue(ci->func);
       return (idx <= func->nupvalues) ? &func->upvalue[idx-1] : NONVALIDVALUE;
     }
@@ -114,7 +115,9 @@ LUA_API void lua_xmove (lua_State *from, lua_State *to, int n) {
   lua_unlock(to);
 }
 
-
+// http://blog.csdn.net/iam_charlie/article/details/7612720
+// Change the old panic function with the given one, and return the old one.
+// panic function is trying to prevent the host program exit when lua_error occurs.
 LUA_API lua_CFunction lua_atpanic (lua_State *L, lua_CFunction panicf) {
   lua_CFunction old;
   lua_lock(L);
@@ -148,11 +151,13 @@ LUA_API int lua_absindex (lua_State *L, int idx) {
 }
 
 
+// Returns the number of elements in the stack, which is also the index of the top element.
 LUA_API int lua_gettop (lua_State *L) {
+  // + 1 is because the index of the first element in lua is 1 instead of 0.
   return cast_int(L->top - (L->ci->func + 1));
 }
 
-
+// Sets the top, i.e. the number of elements in the stack, to a specific value.
 LUA_API void lua_settop (lua_State *L, int idx) {
   StkId func = L->ci->func;
   lua_lock(L);
@@ -169,7 +174,8 @@ LUA_API void lua_settop (lua_State *L, int idx) {
   lua_unlock(L);
 }
 
-
+// Removes the element at the given index, shifting down all elements on top
+// of this position to fill the gap.
 LUA_API void lua_remove (lua_State *L, int idx) {
   StkId p;
   lua_lock(L);
@@ -180,7 +186,7 @@ LUA_API void lua_remove (lua_State *L, int idx) {
   lua_unlock(L);
 }
 
-
+// lua_insert(L, -1) moves top element to top.
 LUA_API void lua_insert (lua_State *L, int idx) {
   StkId p;
   StkId q;
@@ -198,6 +204,7 @@ static void moveto (lua_State *L, TValue *fr, int idx) {
   api_checkvalidindex(L, to);
   setobj(L, to, fr);
   if (idx < LUA_REGISTRYINDEX)  /* function upvalue? */
+	// XXX what is it used for?
     luaC_barrier(L, clCvalue(L->ci->func), fr);
   /* LUA_REGISTRYINDEX does not need gc barrier
      (collector revisits it before finishing collection) */

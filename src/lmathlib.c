@@ -275,8 +275,10 @@ static const luaL_Reg mathlib[] = {
 LUAMOD_API int luaopen_math (lua_State *L) {
   luaL_newlib(L, mathlib);
   lua_pushnumber(L, PI);
+  // set |math.pi| in lua code
   lua_setfield(L, -2, "pi");
   lua_pushnumber(L, HUGE_VAL);
+  // set |math.huge| in lua code
   lua_setfield(L, -2, "huge");
   return 1;
 }
