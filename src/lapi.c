@@ -677,20 +677,32 @@ LUA_API void lua_rawgeti (lua_State *L, int idx, int n) {
   lua_unlock(L);
 }
 
-
+/**
+ * Pushes onto the stack the value `table_at_idx[light_userdata_p_points_to]`
+ */
 LUA_API void lua_rawgetp (lua_State *L, int idx, const void *p) {
   StkId t;
   TValue k;
   lua_lock(L);
   t = index2addr(L, idx);
   api_check(L, ttistable(t), "table expected");
+  // Set k with the light userdata to which the pointer p points.
   setpvalue(&k, cast(void *, p));
+  // hvalue => table value
   setobj2s(L, L->top, luaH_get(hvalue(t), &k));
   api_incr_top(L);
   lua_unlock(L);
 }
 
-
+/**
+ * Creates a new empty table and pushes it onto the stack.
+ *
+ * @param narray
+ *   How many elements the table will have as a sequence.
+ *
+ * @param nrec
+ *   How many other elements the table will have.
+ */
 LUA_API void lua_createtable (lua_State *L, int narray, int nrec) {
   Table *t;
   lua_lock(L);
@@ -710,6 +722,7 @@ LUA_API int lua_getmetatable (lua_State *L, int objindex) {
   int res;
   lua_lock(L);
   obj = index2addr(L, objindex);
+  // ttypenv: type with no variant.
   switch (ttypenv(obj)) {
     case LUA_TTABLE:
       mt = hvalue(obj)->metatable;
@@ -724,6 +737,7 @@ LUA_API int lua_getmetatable (lua_State *L, int objindex) {
   if (mt == NULL)
     res = 0;
   else {
+	// XXX the difference from luaV_settable used in lua_settable?
     sethvalue(L, L->top, mt);
     api_incr_top(L);
     res = 1;
@@ -888,7 +902,10 @@ LUA_API int lua_setmetatable (lua_State *L, int objindex) {
   return 1;
 }
 
-
+/**
+ * Pops a table or nil from the stack and sets it as the new value associated
+ * to userdata at the given index.
+ */
 LUA_API void lua_setuservalue (lua_State *L, int idx) {
   StkId o;
   lua_lock(L);
@@ -926,7 +943,15 @@ LUA_API int lua_getctx (lua_State *L, int *ctx) {
   else return LUA_OK;
 }
 
-
+/**
+ * Behaves exactly like lua_call, but allows the called function to yield.
+ * lua_call equals lua_callk with no ctx and empty k.
+ *
+ * @param nargs
+ *   Number of arguments which are pushed onto the stack.
+ * @param nresults
+ *   Number of results.
+ */
 LUA_API void lua_callk (lua_State *L, int nargs, int nresults, int ctx,
                         lua_CFunction k) {
   StkId func;
@@ -965,7 +990,9 @@ static void f_call (lua_State *L, void *ud) {
 }
 
 
-
+/**
+ * Excecute proctected call.
+ */
 LUA_API int lua_pcallk (lua_State *L, int nargs, int nresults, int errfunc,
                         int ctx, lua_CFunction k) {
   struct CallS c;
