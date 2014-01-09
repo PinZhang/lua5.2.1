@@ -152,7 +152,7 @@ typedef lu_int32 Instruction;
 #endif
 
 
-// When to use lua_lock?
+// XXX When to use lua_lock?
 #if !defined(lua_lock)
 #define lua_lock(L)     ((void) 0)
 #define lua_unlock(L)   ((void) 0)

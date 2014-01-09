@@ -153,7 +153,7 @@ LUA_API int lua_absindex (lua_State *L, int idx) {
 
 // Returns the number of elements in the stack, which is also the index of the top element.
 LUA_API int lua_gettop (lua_State *L) {
-  // + 1 is because the index of the first element in lua is 1 instead of 0.
+  // + 1 is because the L->top is the first available stack item.
   return cast_int(L->top - (L->ci->func + 1));
 }
 
@@ -229,10 +229,13 @@ LUA_API void lua_copy (lua_State *L, int fromidx, int toidx) {
   lua_unlock(L);
 }
 
-
+// Pushes on the stack a copy of the element at the given index.
 LUA_API void lua_pushvalue (lua_State *L, int idx) {
   lua_lock(L);
   setobj2s(L, L->top, index2addr(L, idx));
+  // The current stack item is set to the copy of the element at idx, we need
+  // to increase it to point to the next available stack item.
+  // XXX and why not just L->top++?
   api_incr_top(L);
   lua_unlock(L);
 }
@@ -268,15 +271,28 @@ LUA_API int lua_isnumber (lua_State *L, int idx) {
   return tonumber(o, &n);
 }
 
-
 LUA_API int lua_isstring (lua_State *L, int idx) {
   int t = lua_type(L, idx);
+  // XXX number is string?
   return (t == LUA_TSTRING || t == LUA_TNUMBER);
 }
 
 
 LUA_API int lua_isuserdata (lua_State *L, int idx) {
   const TValue *o = index2addr(L, idx);
+  /**
+   * ** Difference between userdata and light userdata **
+   *
+   * userdata, also called `full userdata`:
+   *   offers a raw memory area, with no predefined operations in Lua, which we
+   *   can use to store anything.
+   *
+   * light userdata:
+   *   A value represents a C pointer (void *), it's a value, not an object.
+   *   not buffers, but single pointers, and no metatables. Like numbers, light
+   *   userdata are not managed by the GC.
+   */
+
   return (ttisuserdata(o) || ttislightuserdata(o));
 }
 
@@ -287,7 +303,7 @@ LUA_API int lua_rawequal (lua_State *L, int index1, int index2) {
   return (isvalid(o1) && isvalid(o2)) ? luaV_rawequalobj(o1, o2) : 0;
 }
 
-
+// Lua arithmetic operations, two operands are expected.
 LUA_API void  lua_arith (lua_State *L, int op) {
   StkId o1;  /* 1st operand */
   StkId o2;  /* 2nd operand */
@@ -329,7 +345,8 @@ LUA_API int lua_compare (lua_State *L, int index1, int index2, int op) {
   return i;
 }
 
-
+// returns if the element at given index is a real number.
+// lua_tonumber equals to lua_tonumberx with isnum==NULL.
 LUA_API lua_Number lua_tonumberx (lua_State *L, int idx, int *isnum) {
   TValue n;
   const TValue *o = index2addr(L, idx);
@@ -425,13 +442,14 @@ LUA_API lua_CFunction lua_tocfunction (lua_State *L, int idx) {
 LUA_API void *lua_touserdata (lua_State *L, int idx) {
   StkId o = index2addr(L, idx);
   switch (ttypenv(o)) {
+    // XXX why +1?
     case LUA_TUSERDATA: return (rawuvalue(o) + 1);
     case LUA_TLIGHTUSERDATA: return pvalue(o);
     default: return NULL;
   }
 }
 
-
+// Converts the value at the given index to a Lua thread (represented as lua_State*)
 LUA_API lua_State *lua_tothread (lua_State *L, int idx) {
   StkId o = index2addr(L, idx);
   return (!ttisthread(o)) ? NULL : thvalue(o);
@@ -495,7 +513,7 @@ LUA_API void lua_pushunsigned (lua_State *L, lua_Unsigned u) {
   lua_unlock(L);
 }
 
-
+// Pushes string by given size |len|.
 LUA_API const char *lua_pushlstring (lua_State *L, const char *s, size_t len) {
   TString *ts;
   lua_lock(L);
@@ -507,7 +525,7 @@ LUA_API const char *lua_pushlstring (lua_State *L, const char *s, size_t len) {
   return getstr(ts);
 }
 
-
+// Pushes the zero-terminated string pointed to by s onto the stack.
 LUA_API const char *lua_pushstring (lua_State *L, const char *s) {
   if (s == NULL) {
     lua_pushnil(L);
@@ -525,7 +543,7 @@ LUA_API const char *lua_pushstring (lua_State *L, const char *s) {
   }
 }
 
-
+// vfstring: formatted string with va_list.
 LUA_API const char *lua_pushvfstring (lua_State *L, const char *fmt,
                                       va_list argp) {
   const char *ret;
@@ -536,7 +554,7 @@ LUA_API const char *lua_pushvfstring (lua_State *L, const char *fmt,
   return ret;
 }
 
-
+// fstring: formatted string with variable number of arguments.
 LUA_API const char *lua_pushfstring (lua_State *L, const char *fmt, ...) {
   const char *ret;
   va_list argp;
@@ -549,7 +567,9 @@ LUA_API const char *lua_pushfstring (lua_State *L, const char *fmt, ...) {
   return ret;
 }
 
-
+/**
+ * @param n number of values be associated with the function.
+ */
 LUA_API void lua_pushcclosure (lua_State *L, lua_CFunction fn, int n) {
   lua_lock(L);
   if (n == 0) {
@@ -562,6 +582,7 @@ LUA_API void lua_pushcclosure (lua_State *L, lua_CFunction fn, int n) {
     luaC_checkGC(L);
     cl = luaF_newCclosure(L, n);
     cl->c.f = fn;
+    // pops the values be associated to the C function.
     L->top -= n;
     while (n--)
       setobj2n(L, &cl->c.upvalue[n], L->top + n);
@@ -731,7 +752,12 @@ LUA_API void lua_getuservalue (lua_State *L, int idx) {
 ** set functions (stack -> Lua)
 */
 
-
+/**
+ * Pops a value from the stack and sets it as the new value of global name.
+ *
+ * @param *var
+ *   The global name
+ */
 LUA_API void lua_setglobal (lua_State *L, const char *var) {
   Table *reg = hvalue(&G(L)->l_registry);
   const TValue *gt;  /* global table */
@@ -744,7 +770,12 @@ LUA_API void lua_setglobal (lua_State *L, const char *var) {
   lua_unlock(L);
 }
 
-
+/**
+ * Pops both the key and value, and set them to the table element at idx.
+ *
+ * @param idx
+ *   The index of the target table element.
+ */
 LUA_API void lua_settable (lua_State *L, int idx) {
   StkId t;
   lua_lock(L);
@@ -769,7 +800,7 @@ LUA_API void lua_setfield (lua_State *L, int idx, const char *k) {
   lua_unlock(L);
 }
 
-
+// raw assignment without metamethods.
 LUA_API void lua_rawset (lua_State *L, int idx) {
   StkId t;
   lua_lock(L);
@@ -777,13 +808,19 @@ LUA_API void lua_rawset (lua_State *L, int idx) {
   t = index2addr(L, idx);
   api_check(L, ttistable(t), "table expected");
   setobj2t(L, luaH_set(L, hvalue(t), L->top-2), L->top-1);
+  // XXX what are TMcache and barrier used for?
   invalidateTMcache(hvalue(t));
   luaC_barrierback(L, gcvalue(t), L->top-1);
   L->top -= 2;
   lua_unlock(L);
 }
 
-
+/**
+ * table_at_idx[n] = value_popped_from_stack
+ *
+ * @param n
+ *   The subscript of the table element at idx to be set.
+ */
 LUA_API void lua_rawseti (lua_State *L, int idx, int n) {
   StkId t;
   lua_lock(L);
