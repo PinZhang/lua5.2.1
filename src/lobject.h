@@ -131,13 +131,17 @@ typedef struct lua_TValue TValue;
 
 
 /* Macros to test type */
+// check raw type
 #define checktag(o,t)		(rttype(o) == (t))
+// check tag type with no variant, so closure and light c function has same type
+// but not same raw type.
 #define checktype(o,t)		(ttypenv(o) == (t))
 #define ttisnumber(o)		checktag((o), LUA_TNUMBER)
 #define ttisnil(o)		checktag((o), LUA_TNIL)
 #define ttisboolean(o)		checktag((o), LUA_TBOOLEAN)
 #define ttislightuserdata(o)	checktag((o), LUA_TLIGHTUSERDATA)
 #define ttisstring(o)		checktype((o), LUA_TSTRING)
+// ctb: abbreviation for Collectable
 #define ttisshrstring(o)	checktag((o), ctb(LUA_TSHRSTR))
 #define ttislngstring(o)	checktag((o), ctb(LUA_TLNGSTR))
 #define ttistable(o)		checktag((o), ctb(LUA_TTABLE))
@@ -155,15 +159,20 @@ typedef struct lua_TValue TValue;
 /* Macros to access values */
 #define nvalue(o)	check_exp(ttisnumber(o), num_(o))
 #define gcvalue(o)	check_exp(iscollectable(o), val_(o).gc)
+// Light user data
 #define pvalue(o)	check_exp(ttislightuserdata(o), val_(o).p)
 #define rawtsvalue(o)	check_exp(ttisstring(o), &val_(o).gc->ts)
 #define tsvalue(o)	(&rawtsvalue(o)->tsv)
 #define rawuvalue(o)	check_exp(ttisuserdata(o), &val_(o).gc->u)
 #define uvalue(o)	(&rawuvalue(o)->uv)
+// closure value
 #define clvalue(o)	check_exp(ttisclosure(o), &val_(o).gc->cl)
+// Lua closure
 #define clLvalue(o)	check_exp(ttisLclosure(o), &val_(o).gc->cl.l)
+// C closure
 #define clCvalue(o)	check_exp(ttisCclosure(o), &val_(o).gc->cl.c)
 #define fvalue(o)	check_exp(ttislcf(o), val_(o).f)
+// h: hashmap, i.e. table
 #define hvalue(o)	check_exp(ttistable(o), &val_(o).gc->h)
 #define bvalue(o)	check_exp(ttisboolean(o), val_(o).b)
 #define thvalue(o)	check_exp(ttisthread(o), &val_(o).gc->th)
@@ -427,6 +436,8 @@ typedef union TString {
 
 
 /* get the actual string (array of bytes) from a TString */
+// Because string bytes follow the end of TString structure, so we increase the
+// address of the TString pointer to get the actual value.
 #define getstr(ts)	cast(const char *, (ts) + 1)
 
 /* get the actual string (array of bytes) from a Lua value */
@@ -521,13 +532,15 @@ typedef struct UpVal {
 #define ClosureHeader \
 	CommonHeader; lu_byte nupvalues; GCObject *gclist
 
+// XXX Difference between Lua closure and c closure?
+// XXX C function passed to LUA?
 typedef struct CClosure {
   ClosureHeader;
   lua_CFunction f;
   TValue upvalue[1];  /* list of upvalues */
 } CClosure;
 
-
+// Lua function
 typedef struct LClosure {
   ClosureHeader;
   struct Proto *p;
