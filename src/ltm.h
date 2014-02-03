@@ -10,6 +10,7 @@
 
 #include "lobject.h"
 
+// Metatable and metamethod
 
 /*
 * WARNING: if you change the order of this enumeration,

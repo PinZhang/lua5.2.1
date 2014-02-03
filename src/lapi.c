@@ -997,6 +997,7 @@ LUA_API int lua_pcallk (lua_State *L, int nargs, int nresults, int errfunc,
                         int ctx, lua_CFunction k) {
   struct CallS c;
   int status;
+  // ptrdiff_t: result of two pointers substraction.
   ptrdiff_t func;
   lua_lock(L);
   api_check(L, k == NULL || !isLua(L->ci),
@@ -1009,6 +1010,7 @@ LUA_API int lua_pcallk (lua_State *L, int nargs, int nresults, int errfunc,
   else {
     StkId o = index2addr(L, errfunc);
     api_checkvalidindex(L, o);
+    // calc: (errfunc - L.base)
     func = savestack(L, o);
   }
   c.func = L->top - (nargs+1);  /* function to be called */

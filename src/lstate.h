@@ -44,6 +44,7 @@ struct lua_longjmp;  /* defined in ldo.c */
 
 
 /* extra stack space to handle TM calls and some other extras */
+// TM: Tag method
 #define EXTRA_STACK   5
 
 
@@ -76,6 +77,7 @@ typedef struct CallInfo {
   union {
     struct {  /* only for Lua functions */
       StkId base;  /* base for this function */
+      // saved Pointer Code?
       const Instruction *savedpc;
     } l;
     struct {  /* only for C functions */
@@ -212,6 +214,7 @@ union GCObject {
 #define gco2th(o)	check_exp((o)->gch.tt == LUA_TTHREAD, &((o)->th))
 
 /* macro to convert any Lua object into a GCObject */
+// First item of all the collectable object share the same header, i.e. CommonHeader
 #define obj2gco(v)	(cast(GCObject *, (v)))
 
 

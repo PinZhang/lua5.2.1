@@ -425,6 +425,7 @@ typedef TValue *StkId;  /* index to stack elements */
 ** Header for string value; string bytes follow the end of this structure
 */
 typedef union TString {
+  // XXX Why need dummy for alignment?
   L_Umaxalign dummy;  /* ensures maximum alignment for strings */
   struct {
     CommonHeader;

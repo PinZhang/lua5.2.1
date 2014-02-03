@@ -144,6 +144,7 @@ static void stack_init (lua_State *L1, lua_State *L) {
   ci->next = ci->previous = NULL;
   ci->callstatus = 0;
   ci->func = L1->top;
+  // XXX already be set to nil value in l139, right?
   setnilvalue(L1->top++);  /* 'function' entry for this 'ci' */
   ci->top = L1->top + LUA_MINSTACK;
   L1->ci = ci;
@@ -234,6 +235,7 @@ LUA_API lua_State *lua_newthread (lua_State *L) {
   lua_State *L1;
   lua_lock(L);
   luaC_checkGC(L);
+  // Create new lua_State for the current thread.
   L1 = &luaC_newobj(L, LUA_TTHREAD, sizeof(LX), NULL, offsetof(LX, l))->th;
   setthvalue(L, L->top, L1);
   api_incr_top(L);
@@ -243,6 +245,7 @@ LUA_API lua_State *lua_newthread (lua_State *L) {
   L1->hook = L->hook;
   resethookcount(L1);
   luai_userstatethread(L, L1);
+  // XXX why call stack_init with two L?
   stack_init(L1, L);  /* init stack */
   lua_unlock(L);
   return L1;

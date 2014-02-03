@@ -551,6 +551,7 @@ void luaV_execute (lua_State *L) {
       Protect(traceexec(L));
     }
     /* WARNING: several calls may realloc the stack and invalidate `ra' */
+    // Get the registry of A for instruction `i`
     ra = RA(i);
     lua_assert(base == ci->u.l.base);
     lua_assert(base <= L->top && L->top < L->stack + L->stacksize);

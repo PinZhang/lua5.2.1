@@ -104,6 +104,7 @@ static TString *createstrobj (lua_State *L, const char *str, size_t l,
   ts->tsv.len = l;
   ts->tsv.hash = h;
   ts->tsv.extra = 0;
+  // Pointer plus 1 means the value of address plus sizeof(TString).
   memcpy(ts+1, str, l*sizeof(char));
   ((char *)(ts+1))[l] = '\0';  /* ending 0 */
   return ts;
